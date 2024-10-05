@@ -86,10 +86,55 @@ uint8_t skip_meta_event(FILE *fp)
     return 0;
 }
 
-uint8_t skip_note(FILE *fp)
+uint8_t skip_midi_event(FILE *fp, uint8_t type)
 {
-    
 
+    switch (type)
+    {
+
+    case 0x80: // Note Off
+        printf("Skip Note Off\n");
+        fseek(fp, 2, SEEK_CUR);
+        break;
+
+    case 0x90: // Note On
+        printf("Skip Note On\n");
+        fseek(fp, 2, SEEK_CUR);
+        break;
+
+    case 0xA0: // Polyphonic Key Pressure (Aftertouch)
+        printf("Skip Polyphonic Key Pressure\n");
+        fseek(fp, 2, SEEK_CUR);
+        break;
+
+    case 0xB0: // Control Change
+        printf("Skip Control Change\n");
+        fseek(fp, 2, SEEK_CUR);
+        break;
+
+    case 0xC0: // Program Change // 1 byte
+        printf("Skip Program Change\n");
+        fseek(fp, 1, SEEK_CUR);
+        break;
+
+    case 0xD0: // Channel Pressure (Aftertouch) // 1 byte
+        printf("Skip Channel Pressure\n");
+        fseek(fp, 1, SEEK_CUR);
+        break;
+
+    case 0xE0: // Pitch Bend Change
+        printf("Skip Pitch Bend Change\n");
+        fseek(fp, 2, SEEK_CUR);
+        break;
+
+    default:
+        abort();
+        printf("Skip Unknown MIDI Type: 0x%x\n", type);
+        fseek(fp, 2, SEEK_CUR);
+        break;
+    }
+
+    return 0;
 }
 
 uint8_t find_key(int8_t key, uint8_t tone, MIDI_controller controller)
@@ -309,50 +354,58 @@ uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
 }
 
 // music event
-void midi_event_handler(FILE *fp, uint32_t delta_time)
+void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
 {
-    uint8_t event;
-
     uint8_t midi_type;
-    // uint8_t channel;
+    uint8_t channel;
 
-    event = fgetc(fp);
+    // printf("Event: 0x%x\n", event);
 
     midi_type = 0xF0 & event; // event name
-    // channel = 0x0F & event;   // where the event gets sent *** for polyphonic music
+    channel = 0x0F & event;   // where the event gets sent *** for polyphonic music
+
+    // printf("Midi Type: 0x%x\n", midi_type);
 
     switch (midi_type)
     {
     case 0x80: // Note Off
-        printf("Note Off\n");
+        printf("Note Off @ Channel: 0x%x\n", channel);
+        skip_midi_event(fp, midi_type);
         break;
 
     case 0x90: // Note On
-        printf("Note On\n");
+        printf("Note On @ Channel: 0x%x\n", channel);
+        skip_midi_event(fp, midi_type);
         break;
 
     case 0xA0: // Polyphonic Key Pressure (Aftertouch)
         printf("Polyphonic Key Pressure\n");
+        skip_midi_event(fp, midi_type);
         break;
 
     case 0xB0: // Control Change
         printf("Control Change\n");
+        skip_midi_event(fp, midi_type);
         break;
 
     case 0xC0: // Program Change
         printf("Program Change\n");
+        skip_midi_event(fp, midi_type);
         break;
 
     case 0xD0: // Channel Pressure (Aftertouch)
         printf("Channel Pressure\n");
+        skip_midi_event(fp, midi_type);
         break;
 
     case 0xE0: // Pitch Bend Change
         printf("Pitch Bend Change\n");
+        skip_midi_event(fp, midi_type);
         break;
 
     default:
-        printf("Unknown MIDI Type: 0x0%x", midi_type);
+        printf("Unknown MIDI Type Handler: 0x%x\n", midi_type);
+        skip_midi_event(fp, midi_type);
         break;
     }
 }
@@ -421,14 +474,14 @@ uint8_t process_one_track(FILE *fp)
         }
         else if ((event_type >= 0xF0) && (event_type != 0xFF))
         {
-            fgetc(fp);
-            skip_meta_event(fp);
+            printf("sysex event called: 0x%x\n", event_type);
+            // fgetc(fp);
+            // skip_meta_event(fp);
             // sysex_event_handler(fp, delta_time);
         }
         else
         {
-            printf("Midi event called type: %x\n", event_type);
-            midi_event_handler(fp, delta_time);
+            midi_event_handler(fp, delta_time, event_type);
         }
 
     } while (end != 1);
