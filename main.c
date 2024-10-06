@@ -1,60 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
-// major key signitures
-#define C_FLAT_MAJOR (0x00)
-#define G_FLAT_MAJOR (0x01)
-#define D_FLAT_MAJOR (0x02)
-#define A_FLAT_MAJOR (0x03)
-#define E_FLAT_MAJOR (0x04)
-#define B_FLAT_MAJOR (0x05)
-#define F_MAJOR (0x06)
-#define C_MAJOR (0x07)
-#define G_MAJOR (0x08)
-#define D_MAJOR (0x09)
-#define A_MAJOR (0x0A)
-#define E_MAJOR (0x0B)
-#define B_MAJOR (0x0C)
-#define F_SHARP_MAJOR (0x0D)
-#define C_SHARP_MAJOR (0x0E)
-
-// minor key signitures
-#define A_FLAT_MINOR (0x0F)  // A♭ Minor: 7 flats
-#define E_FLAT_MINOR (0x10)  // E♭ Minor: 6 flats
-#define B_FLAT_MINOR (0x11)  // B♭ Minor: 5 flats
-#define F_MINOR (0x12)       // F Minor: 4 flats
-#define C_MINOR (0x13)       // C Minor: 3 flats
-#define G_MINOR (0x14)       // G Minor: 2 flats
-#define D_MINOR (0x15)       // D Minor: 1 flat
-#define A_MINOR (0x16)       // A Minor: 0 flats/sharps
-#define E_MINOR (0x17)       // E Minor: 1 sharp
-#define B_MINOR (0x18)       // B Minor: 2 sharps
-#define F_SHARP_MINOR (0x19) // F♯ Minor: 3 sharps
-#define C_SHARP_MINOR (0x1A) // C♯ Minor: 4 sharps
-#define G_SHARP_MINOR (0x1B) // G♯ Minor: 5 sharps
-#define D_SHARP_MINOR (0x1C) // D♯ Minor: 6 sharps
-#define A_SHARP_MINOR (0x1D) // A♯ Minor: 7 sharps
-
-// minor key signitures
-
-typedef struct MIDI_header_chunk
-{
-    uint32_t MThd;    // string to start MIDI file
-    uint32_t hdr_len; // header length
-    uint16_t format;
-    uint16_t num_tracks;
-    uint16_t division; // uinit of time for delta timing
-} MIDI_header_chunk;
-
-typedef struct MIDI_controller
-{
-    uint8_t id;      // id of coil
-    uint8_t start_offset;
-    uint8_t tim_sig; // time signiture
-    uint8_t key_sig; // key signiture
-
-} MIDI_controller;
+#include "common.h"
 
 uint32_t decode_vlq(FILE *fp)
 {
@@ -360,6 +309,7 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
 {
     uint8_t midi_type;
     uint8_t channel;
+    struct note note;
 
     // printf("Event: 0x%x\n", event);
 
@@ -372,12 +322,27 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
     {
     case 0x80: // Note Off
         printf("Note Off @ Channel: 0x%x\n", channel);
-        skip_midi_event(fp, midi_type);
+
+        note.number = fgetc(fp);
+        note.velocity = fgetc(fp);
+        note.frequency = 440 * pow(2.0, (note.number - 69) / 12.0);
+
+        printf("note timing %x\n", delta_time);
+        printf("note velocity %x\n", note.velocity);
+        printf("note frequency %f Hz\n", note.frequency);
+
+        // skip_midi_event(fp, midi_type);
         break;
 
     case 0x90: // Note On
         printf("Note On @ Channel: 0x%x\n", channel);
-        skip_midi_event(fp, midi_type);
+
+        note.number = fgetc(fp);
+        note.velocity = fgetc(fp);
+        note.frequency = 440 * pow(2.0, (note.number - 69) / 12.0);
+
+        printf("note frequency %f Hz\n", note.frequency);
+        // skip_midi_event(fp, midi_type);
         break;
 
     case 0xA0: // Polyphonic Key Pressure (Aftertouch)
@@ -386,22 +351,21 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
         break;
 
     case 0xB0: // Control Change
-        printf("Control Change\n");
+      
         skip_midi_event(fp, midi_type);
         break;
 
     case 0xC0: // Program Change
-        printf("Program Change\n");
+        //changes instrument type
         skip_midi_event(fp, midi_type);
         break;
 
     case 0xD0: // Channel Pressure (Aftertouch)
-        printf("Channel Pressure\n");
         skip_midi_event(fp, midi_type);
         break;
 
     case 0xE0: // Pitch Bend Change
-        printf("Pitch Bend Change\n");
+       
         skip_midi_event(fp, midi_type);
         break;
 
@@ -417,7 +381,55 @@ void sysex_event_handler(FILE *fp, uint32_t delta_time)
 {
 }
 
-uint8_t process_one_track(FILE *fp)
+FILE *get_track(FILE *fp)
+{
+    FILE *track;
+    uint8_t *buf;
+    uint32_t trk_hdr; // string header at front of all tracks
+    uint32_t trk_len; // length of track data
+
+    buf = (uint8_t *)malloc(sizeof(uint8_t) * 8);
+    if (!buf)
+    {
+        printf("Buffer in get_track is null\n");
+    }
+
+    fread(buf, 1, 8, fp);
+
+    trk_hdr = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
+    if (trk_hdr != 0x4D54726B)
+    { // verifies the track start is valid
+        printf("Invalid track header recieved: %x\n", trk_hdr);
+    }
+
+    trk_len = (buf[4] << 24) | (buf[5] << 16) | (buf[6] << 8) | buf[7]; //  track length
+
+    free(buf);
+
+    track = fopen("tempfile.txt", "wb");
+
+    buf = malloc(sizeof(uint8_t) * trk_len);
+    if (!buf)
+    {
+        printf("Buffer in get_track is null");
+    }
+
+    fread(buf, 1, trk_len, fp);
+
+    fwrite(buf, 1, trk_len, track);
+
+    return track;
+}
+
+uint16_t delta_time_to_ms(uint8_t delta_time, uint16_t ticks_per_q_note){
+    uint16_t ms;
+
+    ms = (delta_time / ticks_per_q_note) * (60000/;
+
+    return ms;
+}
+
+uint8_t play_one_track(FILE *fp, MIDI_controller ctrl)
 {
     uint8_t *buf;
     uint32_t trk_hdr; // string header at front of all tracks
@@ -458,17 +470,15 @@ uint8_t process_one_track(FILE *fp)
     printf("Track header: %x\n", trk_hdr);
     printf("Track length: %x\n", trk_len);
 
-    // // dummy read to skip track info
-    // fread(buf, 1, trk_len, fp);
 
     do
     {
 
         delta_time = decode_vlq(fp);
 
-        event_type = fgetc(fp);
+        delta_time_to_ms(delta_time, ctrl.tick_per_q_note);
 
-        // printf("Event Type: %x\n", event_type);
+        event_type = fgetc(fp);
 
         if (event_type == 0xFF)
         {
@@ -545,7 +555,7 @@ int main(int argc, char *argv[])
     FILE *fp;              // for midi file operations
     MIDI_header_chunk hdr; // to container header info
     MIDI_controller *controller;
-    uint8_t i = 0;
+    // uint8_t i = 0;
 
     fp = fopen(argv[1], "r");
 
@@ -557,43 +567,44 @@ int main(int argc, char *argv[])
 
     hdr = parse_midi_header(fp, hdr); // grabs header info
 
-    if (hdr.format == 0)
-    {
-        process_one_track(fp);
-    }
-    else if (hdr.format == 1) // intended to play all tracks at once
-    {
-        controller = malloc(sizeof(MIDI_controller) * hdr.num_tracks);
-        if (!controller)
-        {
-            printf("Malloc Failed for controller");
-            return -1;
-        }
+    controller->tick_per_q_note = hdr.division;
 
+    play_one_track(fp);
+    play_one_track(fp);
 
+    // if (hdr.format == 0)
+    // {
+    //     play_one_track(fp);
+    // }
+    // else if (hdr.format == 1) // intended to play all tracks at once
+    // {
+    //     controller = malloc(sizeof(MIDI_controller) * hdr.num_tracks);
+    //     if (!controller)
+    //     {
+    //         printf("Malloc Failed for controller");
+    //         return -1;
+    //     }
 
-        while (hdr.num_tracks > 0)
-        {
-            controller[i].id = i;
-            controller[i].start_offset;
-        }
+    //     while (hdr.num_tracks > 0)
+    //     {
+    //         controller[i].ctrl_handle = i;
+    //         controller[i].trk_buf = get_track(fp);
+    //     }
+    // }
+    // else // can play independedntly but doesnt have to be together ie multiple instruments
+    // {
 
+    //     // while (hdr.num_tracks > 0)
+    //     // {
 
-    }
-    else // can play independedntly but doesnt have to be together ie multiple instruments
-    {
+    //     //     play_one_track(fp);
 
-        // while (hdr.num_tracks > 0)
-        // {
+    //     //     hdr.num_tracks--;
+    //     // }
+    // }
 
-        //     process_one_track(fp);
-
-        //     hdr.num_tracks--;
-        // }
-    }
-
-    // process_one_track(fp);
-    // process_one_track(fp);
+    // play_one_track(fp);
+    // play_one_track(fp);
 
     return 0;
 }

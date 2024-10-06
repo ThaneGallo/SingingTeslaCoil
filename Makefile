@@ -17,7 +17,7 @@ all: $(TARGET)
 
 # Link the object files to create the executable
 $(TARGET): $(SRCS)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) -lm
 
 # Clean target to remove the executable
 clean:
