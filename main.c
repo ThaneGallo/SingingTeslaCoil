@@ -49,6 +49,8 @@ typedef struct MIDI_header_chunk
 
 typedef struct MIDI_controller
 {
+    uint8_t id;      // id of coil
+    uint8_t start_offset;
     uint8_t tim_sig; // time signiture
     uint8_t key_sig; // key signiture
 
@@ -491,7 +493,7 @@ uint8_t process_one_track(FILE *fp)
     return 0;
 }
 
-MIDI_header_chunk parse_midi(FILE *fp, MIDI_header_chunk hdr)
+MIDI_header_chunk parse_midi_header(FILE *fp, MIDI_header_chunk hdr)
 {
 
     uint8_t *buf;
@@ -542,6 +544,8 @@ int main(int argc, char *argv[])
 {
     FILE *fp;              // for midi file operations
     MIDI_header_chunk hdr; // to container header info
+    MIDI_controller *controller;
+    uint8_t i = 0;
 
     fp = fopen(argv[1], "r");
 
@@ -551,18 +555,45 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    hdr = parse_midi(fp, hdr); // grabs header info
+    hdr = parse_midi_header(fp, hdr); // grabs header info
 
-    process_one_track(fp);
-    process_one_track(fp);
+    if (hdr.format == 0)
+    {
+        process_one_track(fp);
+    }
+    else if (hdr.format == 1) // intended to play all tracks at once
+    {
+        controller = malloc(sizeof(MIDI_controller) * hdr.num_tracks);
+        if (!controller)
+        {
+            printf("Malloc Failed for controller");
+            return -1;
+        }
 
-    // while (hdr.num_tracks > 0)
-    // {
 
-    //     process_one_track(fp);
 
-    //     hdr.num_tracks--;
-    // }
+        while (hdr.num_tracks > 0)
+        {
+            controller[i].id = i;
+            controller[i].start_offset;
+        }
+
+
+    }
+    else // can play independedntly but doesnt have to be together ie multiple instruments
+    {
+
+        // while (hdr.num_tracks > 0)
+        // {
+
+        //     process_one_track(fp);
+
+        //     hdr.num_tracks--;
+        // }
+    }
+
+    // process_one_track(fp);
+    // process_one_track(fp);
 
     return 0;
 }
