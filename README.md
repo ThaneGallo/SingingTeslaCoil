@@ -13,8 +13,11 @@ As it is a hard real time system we would need to break down the parts of it int
 The first step of this process would be to begin by removing all necessary info from the MIDI file header. More detailed information about the header can be found in the hyperlink on the title. For this system specifically however, the most important pieces of info would be the format and number of tracks as well as the division (units per beat).
 
 The formats are as follows:
+
 Format 0 -> A single track
+
 Format 1 -> Multiple tracks format (to be played concurrently)
+
 Format 2 -> Multiple song format
 
 ## System Diagram 
