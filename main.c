@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "common.h"
+#include <free>
 
 uint32_t decode_vlq(FILE *fp)
 {
@@ -88,7 +89,7 @@ uint8_t skip_midi_event(FILE *fp, uint8_t type)
     return 0;
 }
 
-uint8_t find_key(int8_t key, uint8_t tone, MIDI_controller controller)
+uint8_t find_key(int8_t key, uint8_t tone, MIDI_controller *controller)
 {
 
     uint8_t major_keys[15] = {
@@ -130,14 +131,14 @@ uint8_t find_key(int8_t key, uint8_t tone, MIDI_controller controller)
     // minor
     if (tone == 0x00)
     {
-        controller.key_sig = minor_keys[(sizeof(minor_keys) / 2) + key];
-        printf("Key Signiture: 0x%x\n", controller.key_sig);
+        controller->key_sig = minor_keys[(sizeof(minor_keys) / 2) + key];
+        printf("Key Signiture: 0x%x\n", controller->key_sig);
     }
     // major
     else if (tone == 0x01)
     {
-        controller.key_sig = major_keys[(sizeof(minor_keys) / 2) + key];
-        printf("Key Signiture: 0x%x\n", controller.key_sig);
+        controller->key_sig = major_keys[(sizeof(minor_keys) / 2) + key];
+        printf("Key Signiture: 0x%x\n", controller->key_sig);
     }
 
     else
@@ -149,7 +150,21 @@ uint8_t find_key(int8_t key, uint8_t tone, MIDI_controller controller)
     return 0;
 }
 
-uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
+uint16_t delta_time_to_ms(uint8_t delta_time, MIDI_controller *ctrl)
+{
+    float ms = 0;
+
+    // printf("delta time: %d\n", delta_time);
+    // printf("tick per q note: %d\n", ctrl->tick_per_q_note);
+    // printf("tempo: %d\n", ctrl->tempo);
+
+    // needs to be a float to do the division or else returns 0
+    ms = ((float)delta_time / ctrl->tick_per_q_note) * (60000 / ctrl->tempo);
+
+    return ms;
+}
+
+uint8_t meta_event_handler(FILE *fp, uint32_t delta_time, MIDI_controller *ctrl)
 {
 
     uint8_t *buf;
@@ -194,6 +209,7 @@ uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
 
         fread(buf, 1, event_len, fp);
 
+        // prints track name
         while (i < event_len)
         {
             printf("%c", buf[i]);
@@ -230,29 +246,34 @@ uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
 
         return 1; // success!!
     case 0x51:
-        // printf("Handle Tempo Setting\n");
+        printf("Sets Tempo\n");
 
-        // uint32_t num_micro = 0;
+        uint32_t num_micro = 0;
 
-        // buf = malloc(sizeof(uint8_t) * 3);
-        // if (!buf)
-        // {
-        //     printf("Malloc Failed in Time Signiture");
-        //     return -1;
-        // }
-        // fgetc(fp);
-        // fread(buf, 1, 3, fp); // reads 4 bytes
-        // num_micro = (buf[0] << 16) | (buf[1] << 8) | (buf[2]);
-        // printf("Microseconds per quarter note: %d\n", num_micro);
+        buf = malloc(sizeof(uint8_t) * 3);
+        if (!buf)
+        {
+            printf("Malloc Failed in Time Signiture");
+            return -1;
+        }
+        fgetc(fp);
+        fread(buf, 1, 3, fp); // reads 4 bytes
+        num_micro = (buf[0] << 16) | (buf[1] << 8) | (buf[2]);
+        printf("Microseconds per quarter note: %d\n", num_micro);
 
-        skip_meta_event(fp);
+        ctrl->tempo = 60000000 / num_micro; // tempo in bpm
+
+        printf("tempo in BPM: %d\n", ctrl->tempo);
+
+        // skip_meta_event(fp);
         break;
     case 0x54:
         printf("Handle SMPTE Offset\n");
         skip_meta_event(fp);
         break;
-    case 0x58:     // time signiture
-        fgetc(fp); // always 0x04
+    case 0x58: // time signiture
+
+        fgetc(fp); // gets length byte (always 0x04)
 
         buf = malloc(sizeof(uint8_t) * 4);
         if (!buf)
@@ -260,6 +281,13 @@ uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
             printf("Malloc Failed in Time Signiture");
             return -1;
         }
+
+        /* Byte order
+        numerator
+        denominator
+        metrinome clicks
+        32nd notes per quarter
+        */
 
         fread(buf, 1, 4, fp); // reads 4 bytes
 
@@ -270,14 +298,13 @@ uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
         printf("Handle Key Signature\n");
         uint8_t tone;
         uint8_t key_sig;
-        MIDI_controller controller;
 
         fseek(fp, 1, SEEK_CUR); // shifts past length byte 0x02
 
         key_sig = fgetc(fp); // number of sharps or flats
         tone = fgetc(fp);    // major(1) / minor(0)
 
-        find_key(key_sig, tone, controller);
+        find_key(key_sig, tone, ctrl);
 
         break;
     case 0x7F: // sequencer specific event
@@ -304,14 +331,18 @@ uint8_t meta_event_handler(FILE *fp, uint32_t delta_time)
     return 0;
 }
 
-// music event
-void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
+/**
+ *  @brief processes midi events
+ * @param fp File pointer to midi file
+ * @param delta_time time before next event is read in ticks
+ * @param event handle for event type 
+ * @param ctrl contains system information for controls*/
+void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event, MIDI_controller *ctrl)
 {
     uint8_t midi_type;
     uint8_t channel;
+    uint16_t ms;
     struct note note;
-
-    // printf("Event: 0x%x\n", event);
 
     midi_type = 0xF0 & event; // event name
     channel = 0x0F & event;   // where the event gets sent *** for polyphonic music
@@ -327,9 +358,14 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
         note.velocity = fgetc(fp);
         note.frequency = 440 * pow(2.0, (note.number - 69) / 12.0);
 
-        printf("note timing %x\n", delta_time);
-        printf("note velocity %x\n", note.velocity);
+        ms = delta_time_to_ms(delta_time, ctrl);
+
+        note.length = ms;
+
+        // printf("note velocity %x\n", note.velocity);
         printf("note frequency %f Hz\n", note.frequency);
+        printf("note timing in ms %x\n\n", ms);
+
 
         // skip_midi_event(fp, midi_type);
         break;
@@ -337,11 +373,19 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
     case 0x90: // Note On
         printf("Note On @ Channel: 0x%x\n", channel);
 
+        ms = delta_time_to_ms(delta_time, ctrl);
+
         note.number = fgetc(fp);
         note.velocity = fgetc(fp);
         note.frequency = 440 * pow(2.0, (note.number - 69) / 12.0);
 
         printf("note frequency %f Hz\n", note.frequency);
+        printf("note timing in ms %x\n\n", ms);
+
+        // delay before event begins = ms
+
+        // play note until note off event
+
         // skip_midi_event(fp, midi_type);
         break;
 
@@ -351,12 +395,11 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
         break;
 
     case 0xB0: // Control Change
-      
         skip_midi_event(fp, midi_type);
         break;
 
     case 0xC0: // Program Change
-        //changes instrument type
+        // changes instrument type
         skip_midi_event(fp, midi_type);
         break;
 
@@ -365,7 +408,7 @@ void midi_event_handler(FILE *fp, uint32_t delta_time, uint8_t event)
         break;
 
     case 0xE0: // Pitch Bend Change
-       
+
         skip_midi_event(fp, midi_type);
         break;
 
@@ -421,15 +464,7 @@ FILE *get_track(FILE *fp)
     return track;
 }
 
-uint16_t delta_time_to_ms(uint8_t delta_time, uint16_t ticks_per_q_note){
-    uint16_t ms;
-
-    ms = (delta_time / ticks_per_q_note) * (60000/;
-
-    return ms;
-}
-
-uint8_t play_one_track(FILE *fp, MIDI_controller ctrl)
+uint8_t play_one_track(FILE *fp, MIDI_controller *ctrl)
 {
     uint8_t *buf;
     uint32_t trk_hdr; // string header at front of all tracks
@@ -470,19 +505,16 @@ uint8_t play_one_track(FILE *fp, MIDI_controller ctrl)
     printf("Track header: %x\n", trk_hdr);
     printf("Track length: %x\n", trk_len);
 
-
     do
     {
 
         delta_time = decode_vlq(fp);
 
-        delta_time_to_ms(delta_time, ctrl.tick_per_q_note);
-
         event_type = fgetc(fp);
 
         if (event_type == 0xFF)
         {
-            end = meta_event_handler(fp, delta_time);
+            end = meta_event_handler(fp, delta_time, ctrl);
         }
         else if ((event_type >= 0xF0) && (event_type != 0xFF))
         {
@@ -493,7 +525,7 @@ uint8_t play_one_track(FILE *fp, MIDI_controller ctrl)
         }
         else
         {
-            midi_event_handler(fp, delta_time, event_type);
+            midi_event_handler(fp, delta_time, event_type, ctrl);
         }
 
     } while (end != 1);
@@ -554,7 +586,7 @@ int main(int argc, char *argv[])
 {
     FILE *fp;              // for midi file operations
     MIDI_header_chunk hdr; // to container header info
-    MIDI_controller *controller;
+    MIDI_controller *ctrl = malloc(sizeof(MIDI_controller));
     // uint8_t i = 0;
 
     fp = fopen(argv[1], "r");
@@ -567,10 +599,10 @@ int main(int argc, char *argv[])
 
     hdr = parse_midi_header(fp, hdr); // grabs header info
 
-    controller->tick_per_q_note = hdr.division;
+    ctrl->tick_per_q_note = hdr.division;
 
-    play_one_track(fp);
-    play_one_track(fp);
+    play_one_track(fp, ctrl);
+    play_one_track(fp, ctrl);
 
     // if (hdr.format == 0)
     // {

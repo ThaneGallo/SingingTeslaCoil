@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 // major key signitures
 #define C_FLAT_MAJOR (0x00)
@@ -57,6 +58,7 @@ typedef struct MIDI_controller
 
     uint16_t tick_per_q_note;
     uint8_t tempo;
+    bool is_busy;
 
     FILE* trk_buf; // to contain tracks for playing synchronously
 
@@ -66,6 +68,7 @@ struct note {
     uint8_t number; //60 is middle C
     uint8_t velocity; //loudness of key?
     float frequency;
+    uint8_t length;
 };
 
 
