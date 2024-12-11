@@ -13,6 +13,12 @@ As it is a hard real time system we would need to break down the parts of it int
 
 ![System Diagram](images/System_Diagram_Tesla_Coil_Array.jpeg)
 
+Note: Current implimentation supports up to 16 timers and coils but could vary based on STM SOC used. Specifics on thread implimentation can be found in the links below:
+
+[ParseMidiThread](Documentation_and_Background/ParseMidiThread.md)
+
+[AudioOutputThread](Documentation_and_Background/AudioOutputhread.md)
+
 
 ## [MIDI Header](https://ccrma.stanford.edu/~craig/14q/midifile/MidiFileFormat.html)
 The first step of this process would be to begin by removing all necessary info from the MIDI file header. More detailed information about the header can be found in the hyperlink on the title. For this system specifically however, the most important pieces of info would be the format and number of tracks as well as the division (units per beat).
