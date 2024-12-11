@@ -15,9 +15,9 @@ As it is a hard real time system we would need to break down the parts of it int
 
 Note: Current implimentation supports up to 16 timers and coils but could vary based on STM SOC used. Specifics on thread implimentation can be found in the links below:
 
-[ParseMidiThread](Documentaton/ParseMidiThread.md)
+[ParseMidiThread](Documentation/ParseMidiThread.md)
 
-[AudioOutputThread](Documentaton/AudioOutputhread.md)
+[AudioOutputThread](Documentation/AudioOutputhread.md)
 
 
 ## [MIDI Header](https://ccrma.stanford.edu/~craig/14q/midifile/MidiFileFormat.html)
