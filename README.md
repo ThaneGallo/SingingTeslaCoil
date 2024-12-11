@@ -9,7 +9,12 @@ Next, a STM32 nucleo development board was used to replace this chip using custo
 
 As it is a hard real time system we would need to break down the parts of it into different threads to make sure all pieces happen with the correct timings to make sure the notes play correctly and the desired output is obtained.
 
-### [MIDI Header](https://ccrma.stanford.edu/~craig/14q/midifile/MidiFileFormat.html)
+## High Level System Diagram
+
+![System Diagram](images/System_Diagram_Tesla_Coil_Array)
+
+
+## [MIDI Header](https://ccrma.stanford.edu/~craig/14q/midifile/MidiFileFormat.html)
 The first step of this process would be to begin by removing all necessary info from the MIDI file header. More detailed information about the header can be found in the hyperlink on the title. For this system specifically however, the most important pieces of info would be the format and number of tracks as well as the division (units per beat).
 
 The formats are as follows:
