@@ -11,7 +11,7 @@ As it is a hard real time system we would need to break down the parts of it int
 
 ## High Level System Diagram
 
-![System Diagram](images/System_Diagram_Tesla_Coil_Array)
+![System Diagram](images/System_Diagram_Tesla_Coil_Array.jpeg)
 
 
 ## [MIDI Header](https://ccrma.stanford.edu/~craig/14q/midifile/MidiFileFormat.html)
