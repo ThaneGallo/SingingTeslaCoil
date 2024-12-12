@@ -5,4 +5,4 @@ The song which is desired to play would be added to an sd card and using the Fat
 
 
 ## System Diagram 
-[System Diagram](images/System_Diagram_Parse_Midi.jpeg)
+[System Diagram](images/../System_Diagram_Parse_Midi.jpeg)
