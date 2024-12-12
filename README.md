@@ -15,7 +15,7 @@ As it is a hard real time system we would need to break down the parts of it int
 
 Note: Current implimentation supports up to 16 timers and coils but could vary based on STM SOC used. Specifics on thread implimentation can be found in the links below:
 
-[ParseMidiThread](Documentation/ParseMidiThread.md)
+[MidiParseThread](Documentation/MidiParseThread.md)
 
 [AudioOutputThread](Documentation/AudioOutputhread.md)
 
