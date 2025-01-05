@@ -17,7 +17,7 @@ Note: Current implimentation supports up to 16 timers and coils but could vary b
 
 [MidiParseThread](Documentation/MidiParseThread.md)
 
-[AudioOutputThread](Documentation/AudioOutputhread.md)
+[AudioOutputThread](Documentation/AudioOutputThread.md)
 
 
 ## [MIDI Header](https://ccrma.stanford.edu/~craig/14q/midifile/MidiFileFormat.html)
