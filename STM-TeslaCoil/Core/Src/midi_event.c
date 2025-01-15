@@ -116,7 +116,7 @@ uint8_t meta_event_handler(FIL *fp, uint32_t delta_time, MIDI_controller *ctrl)
     Event Code (1 byte)
     */
 
-    meta_type = f_read(fp, &meta_type, 1, NULL);;
+    f_read(fp, &meta_type, 1, NULL);
 
     switch (meta_type)
     {
@@ -237,7 +237,7 @@ uint8_t meta_event_handler(FIL *fp, uint32_t delta_time, MIDI_controller *ctrl)
         uint8_t tone;
         uint8_t key_sig;
 
-        f_lseek(fp, 1); // shifts past length byte 0x02
+        f_lseek(fp, f_tell(fp) + 1); // shifts past length byte 0x02
 
         f_read(fp, &key_sig, 1, NULL);; // number of sharps or flats
         f_read(fp, &tone, 1, NULL);;    // major(1) / minor(0)
@@ -291,7 +291,7 @@ uint8_t skip_meta_event(FIL *fp)
 
     event_len = decode_vlq(fp);
 
-    err = f_lseek(fp, event_len);
+    err = f_lseek(fp, f_tell(fp) + event_len);
     if (err == -1)
     {
         myprintf("f_lseek in skip event failed");
@@ -315,43 +315,43 @@ uint8_t skip_midi_event(FIL *fp, uint8_t type)
 
     case 0x80: // Note Off
         myprintf("Skip Note Off\n");
-        f_lseek(fp, 2);
+        f_lseek(fp, f_tell(fp) + 2);
         break;
 
     case 0x90: // Note On
         myprintf("Skip Note On\n");
-        f_lseek(fp, 2);
+        f_lseek(fp, f_tell(fp) + 2);
         break;
 
     case 0xA0: // Polyphonic Key Pressure (Aftertouch)
         myprintf("Skip Polyphonic Key Pressure\n");
-        f_lseek(fp, 2);
+        f_lseek(fp, f_tell(fp) + 2);
         break;
 
     case 0xB0: // Control Change
         myprintf("Skip Control Change\n");
-        f_lseek(fp, 2);
+        f_lseek(fp, f_tell(fp) + 2);
         break;
 
     case 0xC0: // Program Change // 1 byte
         myprintf("Skip Program Change\n");
-        f_lseek(fp, 1);
+        f_lseek(fp, f_tell(fp) + 1);
         break;
 
     case 0xD0: // Channel Pressure (Aftertouch) // 1 byte
         myprintf("Skip Channel Pressure\n");
-        f_lseek(fp, 1);
+        f_lseek(fp, f_tell(fp) + 1);
         break;
 
     case 0xE0: // Pitch Bend Change
         myprintf("Skip Pitch Bend Change\n");
-        f_lseek(fp, 2);
+        f_lseek(fp, f_tell(fp) + 2);
         break;
 
     default:
         abort();
         myprintf("Skip Unknown MIDI Type: 0x%x\n", type);
-        f_lseek(fp, 2);
+        f_lseek(fp, f_tell(fp) + 2);
         break;
     }
 
@@ -484,6 +484,7 @@ uint8_t play_one_track(FIL *fp, MIDI_controller *ctrl)
     uint32_t trk_hdr; // string header at front of all tracks
     uint32_t trk_len; // length of track data
     uint8_t end;
+    uint8_t bytes_read;
 
     uint8_t event_type;
     uint32_t delta_time;
@@ -524,7 +525,9 @@ uint8_t play_one_track(FIL *fp, MIDI_controller *ctrl)
 
         delta_time = decode_vlq(fp);
 
-        f_read(fp, &event_type, 1, NULL);;
+        f_read(fp, &event_type, 1, &bytes_read);
+
+        myprintf("event type %d\n", event_type);
 
         if (event_type == 0xFF)
         {
@@ -566,7 +569,7 @@ MIDI_header_chunk parse_midi_header(FIL *fp, MIDI_header_chunk hdr)
         myprintf("Buffer in parse_midi is null");
     }
 
-    f_read(fp,buf,14,NULL);
+    f_read(fp, buf, 14, NULL);
 
     // all big endian
     hdr.MThd = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];

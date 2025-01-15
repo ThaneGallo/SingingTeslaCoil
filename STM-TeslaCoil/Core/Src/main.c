@@ -108,31 +108,42 @@ int main(void)
 
 
 
-  	 FIL *fp = NULL;              // for midi file operations
+  	 FIL fp;        // for midi file operation
+  	 FATFS FatFs; 	//Fatfs handle
      MIDI_header_chunk hdr; // to container header info
-     uint8_t res;
+     FRESULT res;
      MIDI_controller *ctrl = malloc(sizeof(MIDI_controller));
      // uint8_t i = 0;
 
-     res = f_open(fp, "name_of_music", FA_READ);
+     HAL_Delay(1000);
 
-     if (!fp)
+     res = f_mount(&FatFs, "/", 1); //1=mount now
+          if (res != FR_OK) {
+        	myprintf("f_mount error (%i)\r\n", res);
+        	while(1);
+          }
+
+     res = f_open(&fp, "twinkle.mid", FA_READ | FA_WRITE);
+
+     if (res != FR_OK)
      {
-         myprintf("fp is Null");
-         return -1;
+         myprintf("fopen error: %d\n", res);
+         while(1);
      }
 
-     hdr = parse_midi_header(fp, hdr); // grabs header info
 
-     ctrl->tick_per_q_note = hdr.division;
+     hdr = parse_midi_header(&fp, hdr); // grabs header info
+//
+//     ctrl->tick_per_q_note = hdr.division;
 
 
      //BaseType_t xReturned;
      //xReturned = xTaskCreate(parseMidi, "Parse Midi", 2048, fp, Handle)
 
 
-     play_one_track(fp, ctrl);
+     play_one_track(&fp, ctrl);
 
+//     play_one_track(&fp, ctrl);
 
 
      // if (hdr.format == 0)
@@ -180,7 +191,8 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  myprintf("end of thing!!!");
+	  HAL_Delay(100000);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

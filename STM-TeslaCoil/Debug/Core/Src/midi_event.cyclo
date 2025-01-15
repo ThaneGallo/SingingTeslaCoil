@@ -6,4 +6,4 @@
 ../Core/Src/midi_event.c:368:9:find_key	3
 ../Core/Src/midi_event.c:434:6:get_track	4
 ../Core/Src/midi_event.c:481:9:play_one_track	8
-../Core/Src/midi_event.c:558:19:parse_midi_header	7
+../Core/Src/midi_event.c:561:19:parse_midi_header	7
