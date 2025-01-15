@@ -10,7 +10,7 @@ CFLAGS = -Wall -Werror
 TARGET = main
 
 # Source files
-SRCS = main.c
+SRCS = main.c utils.c midi_event.c
 
 # Default target
 all: $(TARGET)
