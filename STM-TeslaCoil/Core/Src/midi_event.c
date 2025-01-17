@@ -5,6 +5,86 @@
 #include <stdlib.h>
 #include <math.h>
 
+
+
+void note_on_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_controller *ctrl){
+
+      uint16_t ms;
+      note = malloc(sizeof(note));
+      ms = delta_time_to_ms(delta_time, ctrl);
+      osStatus res;
+
+      note->on_off = true;
+      note->ms = ms;
+
+
+
+
+      f_read(fp, note->number, 1, NULL);
+      f_read(fp, note->velocity, 1, NULL);
+      note->frequency = 440 * pow(2.0, (note->number - 69) / 12.0);
+
+//      myprintf("Note On @ Channel: 0x%x\n", channel);
+//      myprintf("note frequency %f Hz\n", note->frequency);
+//      myprintf("note timing in ms %x\n\n", ms);
+
+      myprintf("before message put in note on");
+      	  res = osMessagePut(ctrl->queue, note, osWaitForever);
+      	myprintf("before message after put");
+          if(res != osOK){
+          	myprintf("error in osMessagePut %d\n", res);
+          }
+
+          myprintf("note number in PARSE %x\n", note->number);
+
+
+
+      //play note
+//     free(note);
+
+      // skip_midi_event(fp, midi_type);
+}
+
+void note_off_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_controller *ctrl){
+
+
+    uint16_t ms;
+    ms = delta_time_to_ms(delta_time, ctrl);
+    note = malloc(sizeof(note));
+    osStatus res;
+
+    note->on_off = false;
+    note->ms = ms;
+
+    f_read(fp,note->number, 1, NULL);
+    f_read(fp,note->velocity, 1, NULL);
+    note->frequency = 440 * pow(2.0, (note->number - 69) / 12.0);
+
+
+
+
+    // myprintf("note velocity %x\n", note.velocity);
+//    myprintf("Note Off @ Channel: 0x%x\n", channel);
+//    myprintf("note frequency %f Hz\n", note->frequency);
+
+
+    //is there space?
+
+    //send note to queue
+
+    myprintf("before message put in note off");
+    // skip_midi_event(fp, midi_type);
+    res = osMessagePut(ctrl->queue, (uint32_t)note, osWaitForever);
+    if(res != osOK){
+    	myprintf("error in osMessagePut %d\n", res);
+    }
+
+    myprintf("note number in PARSE %x\n", note->number);
+
+
+}
+
+
 /**
  *  @brief processes midi events
  * @param fp FIL pointer to midi FIL
@@ -15,8 +95,7 @@ void midi_event_handler(FIL *fp, uint32_t delta_time, uint8_t event, MIDI_contro
 {
     uint8_t midi_type;
     uint8_t channel;
-    uint16_t ms;
-    struct note note;
+    struct note* note;
 
     midi_type = 0xF0 & event; // event name
     channel = 0x0F & event;   // where the event gets sent *** for polyphonic music
@@ -26,43 +105,11 @@ void midi_event_handler(FIL *fp, uint32_t delta_time, uint8_t event, MIDI_contro
     switch (midi_type)
     {
     case 0x80: // Note Off
-        myprintf("Note Off @ Channel: 0x%x\n", channel);
-
-        f_read(fp, &note.number, 1, NULL);
-        f_read(fp, &note.velocity, 1, NULL);
-        note.frequency = 440 * pow(2.0, (note.number - 69) / 12.0);
-
-        ms = delta_time_to_ms(delta_time, ctrl);
-
-        note.length = ms;
-
-        // myprintf("note velocity %x\n", note.velocity);
-        myprintf("note frequency %f Hz\n", note.frequency);
-        myprintf("note timing in ms %x\n\n", ms);
-
-        HAL_Delay(ms);
-
-        // skip_midi_event(fp, midi_type);
+    	note_off_event(note, fp, delta_time, ctrl);
         break;
 
     case 0x90: // Note On
-        myprintf("Note On @ Channel: 0x%x\n", channel);
-
-        ms = delta_time_to_ms(delta_time, ctrl);
-
-        f_read(fp, &note.number, 1, NULL);
-        f_read(fp, &note.velocity, 1, NULL);
-        note.frequency = 440 * pow(2.0, (note.number - 69) / 12.0);
-
-        myprintf("note frequency %f Hz\n", note.frequency);
-        myprintf("note timing in ms %x\n\n", ms);
-
-        // delay before event begins = ms
-        HAL_Delay(ms);
-
-        // play note until note off event
-
-        // skip_midi_event(fp, midi_type);
+    	note_on_event(note, fp, delta_time, ctrl);
         break;
 
     case 0xA0: // Polyphonic Key Pressure (Aftertouch)
@@ -261,7 +308,7 @@ uint8_t meta_event_handler(FIL *fp, uint32_t delta_time, MIDI_controller *ctrl)
         skip_meta_event(fp);
         break;
     default:
-        myprintf("Unknown event type: 0x%02X\n", meta_type);
+        myprintf("Unknown meta event type: 0x%02X\n", meta_type);
         skip_meta_event(fp);
         return -1;
     }
@@ -484,7 +531,6 @@ uint8_t play_one_track(FIL *fp, MIDI_controller *ctrl)
     uint32_t trk_hdr; // string header at front of all tracks
     uint32_t trk_len; // length of track data
     uint8_t end;
-    uint8_t bytes_read;
 
     uint8_t event_type;
     uint32_t delta_time;
@@ -525,7 +571,7 @@ uint8_t play_one_track(FIL *fp, MIDI_controller *ctrl)
 
         delta_time = decode_vlq(fp);
 
-        f_read(fp, &event_type, 1, &bytes_read);
+        f_read(fp, &event_type, 1, NULL);
 
         myprintf("event type %d\n", event_type);
 

@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "cmsis_os.h"
 #include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -52,8 +53,13 @@
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart2;
 
+osThreadId ParseMidiHandle;
+osThreadId AudioOutputHandle;
+osMessageQId NoteQueue1Handle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -63,6 +69,10 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_TIM1_Init(void);
+void StartParseMidi(void const * argument);
+void StartAudioOutput(void const * argument);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -80,6 +90,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  void* arg;
 
   /* USER CODE END 1 */
 
@@ -104,95 +115,118 @@ int main(void)
   MX_USART2_UART_Init();
   MX_FATFS_Init();
   MX_SPI1_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-
-
-  	 FIL fp;        // for midi file operation
-  	 FATFS FatFs; 	//Fatfs handle
-     MIDI_header_chunk hdr; // to container header info
-     FRESULT res;
-     MIDI_controller *ctrl = malloc(sizeof(MIDI_controller));
-     // uint8_t i = 0;
-
-     HAL_Delay(1000);
-
-     res = f_mount(&FatFs, "/", 1); //1=mount now
-          if (res != FR_OK) {
-        	myprintf("f_mount error (%i)\r\n", res);
-        	while(1);
-          }
-
-     res = f_open(&fp, "twinkle.mid", FA_READ | FA_WRITE);
-
-     if (res != FR_OK)
-     {
-         myprintf("fopen error: %d\n", res);
-         while(1);
-     }
-
-
-     hdr = parse_midi_header(&fp, hdr); // grabs header info
-//
-//     ctrl->tick_per_q_note = hdr.division;
-
-
-     //BaseType_t xReturned;
-     //xReturned = xTaskCreate(parseMidi, "Parse Midi", 2048, fp, Handle)
-
-
-     play_one_track(&fp, ctrl);
-
-//     play_one_track(&fp, ctrl);
-
-
-     // if (hdr.format == 0)
-     // {
-     //     play_one_track(fp);
-     // }
-     // else if (hdr.format == 1) // intended to play all tracks at once
-     // {
-     //     controller = malloc(sizeof(MIDI_controller) * hdr.num_tracks);
-     //     if (!controller)
-     //     {
-     //         printf("Malloc Failed for controller");
-     //         return -1;
-     //     }
-
-     //     while (hdr.num_tracks > 0)
-     //     {
-     //         controller[i].ctrl_handle = i;
-     //         controller[i].trk_buf = get_track(fp);
-     //     }
-     // }
-     // else // can play independedntly but doesnt have to be together ie multiple instruments
-     // {
-
-     //     // while (hdr.num_tracks > 0)
-     //     // {
-
-     //     //     play_one_track(fp);
-
-     //     //     hdr.num_tracks--;
-     //     // }
-     // }
-
-     // play_one_track(fp);
-     // play_one_track(fp);
+  myprintf("start of program ");
 
 
 
+  FIL fp;        // for midi file operation
+  FATFS FatFs; 	//Fatfs handle
+  MIDI_header_chunk hdr; // to container header info
+  FRESULT res;
+  MIDI_controller *ctrl = malloc(sizeof(MIDI_controller));
+
+
+  // uint8_t i = 0;
+
+  osDelay(1000);
+
+  res = f_mount(&FatFs, "/", 1); //1=mount now
+       if (res != FR_OK) {
+     	myprintf("f_mount error (%i)\r\n", res);
+     	while(1);
+       }
+
+
+  /*list of songs currently on the sd card
+   * twinkle.mid --> no chords && format 0
+   * gerudo.mid --> TONS of chords (3 notes) && format 1
+   * mario.mid --> unkown midi event 10
+   * shoveit.mid --> broken as well
+   * */
+  res = f_open(&fp, "twinkle.mid", FA_READ | FA_WRITE);
+
+  if (res != FR_OK)
+  {
+      myprintf("fopen error: %d\n", res);
+      while(1);
+  }
+
+
+  hdr = parse_midi_header(&fp, hdr); // grabs header info
+
+  ctrl->format = hdr.format;
+  if(hdr.format == 0){
+	  ctrl->trk_buf = &fp;
+  }
 
 
   /* USER CODE END 2 */
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* definition and creation of NoteQueue1 */
+  osMessageQDef(NoteQueue1, 16, note);
+  NoteQueue1Handle = osMessageCreate(osMessageQ(NoteQueue1), NULL);
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* definition and creation of ParseMidi */
+  osThreadDef(ParseMidi, StartParseMidi, osPriorityNormal, 0, 128);
+  ParseMidiHandle = osThreadCreate(osThread(ParseMidi), (void*) ctrl);
+
+  /* definition and creation of AudioOutput */
+  osThreadDef(AudioOutput, StartAudioOutput, osPriorityNormal, 0, 128);
+  AudioOutputHandle = osThreadCreate(osThread(AudioOutput), (void*) ctrl);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+
+
+
+  //might need to add a list of queues
+
+//  myprintf("beofre parse start");
+//
+//  StartParseMidi(&NoteQueue1Handle);
+//
+//  myprintf("beofre audio output start");
+//
+//  StartAudioOutput(&NoteQueue1Handle);
+
+
+
+
+  /* USER CODE END RTOS_THREADS */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
     /* USER CODE END WHILE */
-	  myprintf("end of thing!!!");
-	  HAL_Delay(100000);
+
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -268,7 +302,7 @@ static void MX_SPI1_Init(void)
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_16;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -280,6 +314,71 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM1_Init(void)
+{
+
+  /* USER CODE BEGIN TIM1_Init 0 */
+
+  /* USER CODE END TIM1_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
+
+  /* USER CODE BEGIN TIM1_Init 1 */
+
+  /* USER CODE END TIM1_Init 1 */
+  htim1.Instance = TIM1;
+  htim1.Init.Prescaler = 18000;
+  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim1.Init.Period = 1000;
+  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim1.Init.RepetitionCounter = 0;
+  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
+  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
+  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
+  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
+  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
+  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
+  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
+  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM1_Init 2 */
+
+  /* USER CODE END TIM1_Init 2 */
+  HAL_TIM_MspPostInit(&htim1);
 
 }
 
@@ -347,6 +446,104 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartParseMidi */
+/**
+  * @brief  Function implementing the ParseMidi thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartParseMidi */
+void StartParseMidi(void const * argument)
+{
+  /* USER CODE BEGIN 5 */
+
+	  MIDI_controller* ctrl = (MIDI_controller*)argument;
+    switch(ctrl->format){
+    case 0:
+    	play_one_track(ctrl->trk_buf, ctrl);
+    	break;
+    case 1:
+    	myprintf("CASE 1 NOT SUPPORTED...yet\n");
+    	break;
+    case 2:
+    	myprintf("CASE 2 NOT SUPPORTED <3\n");
+    	break;
+    }
+
+    uint8_t cnt = 0;
+  /* Infinite loop */
+    for(;;)
+    {
+
+    	myprintf("in parse %d\n", cnt);
+    	osDelay(1000);
+    	cnt++;
+  	}
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartAudioOutput */
+/**
+* @brief Function implementing the AudioOutput thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartAudioOutput */
+void StartAudioOutput(void const * argument)
+{
+  /* USER CODE BEGIN StartAudioOutput */
+
+	myprintf("start of audio output\n");
+	MIDI_controller* ctrl = (MIDI_controller*)argument;
+
+	note* recieved_note = malloc(sizeof(note));
+	uint8_t cnt = 0;
+
+
+  /* Infinite loop */
+  for(;;)
+  {
+	  osEvent res;
+	  res = osMessageGet(ctrl->queue, osWaitForever);
+
+	  recieved_note = (note*)res.value.p;
+
+	  myprintf("note # %d recieved \n", recieved_note->number);
+
+
+	  if(res.status != osOK){
+		  myprintf("osMessageGet error with code %x\n", res.status);
+	  }
+
+			myprintf("in output %d\n", cnt);
+	    	osDelay(1000);
+	    	cnt++;
+
+  }
+  /* USER CODE END StartAudioOutput */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM14 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM14) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

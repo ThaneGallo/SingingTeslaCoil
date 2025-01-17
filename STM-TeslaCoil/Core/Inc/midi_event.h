@@ -6,6 +6,10 @@
 #include "fatfs.h"
 
 
+void note_on_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_controller *ctrl);
+
+void note_off_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_controller *ctrl);
+
 /**
  *  @brief processes midi events
  * @param fp FIL pointer to midi FIL

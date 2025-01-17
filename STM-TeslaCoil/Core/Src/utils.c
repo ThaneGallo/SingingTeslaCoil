@@ -58,3 +58,27 @@ void myprintf(const char *fmt, ...) {
   HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, -1);
 
 }
+
+
+//frequency in Hz
+void generate_pwm(double freq, double duty, TIM_HandleTypeDef *timer) {
+
+    uint16_t arr;
+    uint16_t comp;
+
+    // preipheral clocks are 1/2 of the same channel's timer clocks
+    uint32_t timer_clock = HAL_RCC_GetPCLK1Freq() * 2;
+
+    //65,535 is the max arr  value
+    arr = (uint16_t)(((timer_clock / (timer->Init.Prescaler + 1)) / freq) - 1); // value for autoreload register
+    comp = (uint16_t)((duty / 100) * (arr + 1)); // value for compare register
+
+    HAL_TIM_PWM_Stop(timer, timer->Channel);
+
+    __HAL_TIM_SET_AUTORELOAD(timer, arr);
+    __HAL_TIM_SET_COMPARE(timer, timer->Channel, comp);
+
+    HAL_TIM_PWM_Start(timer, timer->Channel);
+
+}
+
