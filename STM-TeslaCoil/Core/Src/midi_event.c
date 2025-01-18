@@ -28,8 +28,8 @@ void note_on_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_control
 //      myprintf("note frequency %f Hz\n", note->frequency);
 //      myprintf("note timing in ms %x\n\n", ms);
 
-      myprintf("before message put in note on");
-      	  res = osMessagePut(ctrl->queue, note, osWaitForever);
+      myprintf("before message put in note on\n");
+      	  res = osMessagePut(NoteQueue1Handle, note, osWaitForever);
       	myprintf("before message after put");
           if(res != osOK){
           	myprintf("error in osMessagePut %d\n", res);
@@ -71,9 +71,9 @@ void note_off_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_contro
 
     //send note to queue
 
-    myprintf("before message put in note off");
+    myprintf("before message put in note off\n");
     // skip_midi_event(fp, midi_type);
-    res = osMessagePut(ctrl->queue, note, osWaitForever);
+    res = osMessagePut(NoteQueue1Handle, note, osWaitForever);
     if(res != osOK){
     	myprintf("error in osMessagePut %d\n", res);
     }
@@ -561,7 +561,7 @@ uint8_t play_one_track(FIL *fp, MIDI_controller *ctrl)
         return -1;
     }
 
-    myprintf("beofre track header");
+    myprintf("before track header\n");
 
     // for debug
     myprintf("Track header: %x\n", trk_hdr);

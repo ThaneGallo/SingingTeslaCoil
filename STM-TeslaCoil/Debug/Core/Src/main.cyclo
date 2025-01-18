@@ -4,7 +4,7 @@
 ../Core/Src/main.c:330:13:MX_TIM1_Init	5
 ../Core/Src/main.c:395:13:MX_USART2_UART_Init	2
 ../Core/Src/main.c:428:13:MX_GPIO_Init	1
-../Core/Src/main.c:462:6:StartParseMidi	1
-../Core/Src/main.c:499:6:StartAudioOutput	1
-../Core/Src/main.c:541:6:HAL_TIM_PeriodElapsedCallback	2
-../Core/Src/main.c:558:6:Error_Handler	1
+../Core/Src/main.c:462:6:StartParseMidi	5
+../Core/Src/main.c:501:6:StartAudioOutput	3
+../Core/Src/main.c:543:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:560:6:Error_Handler	1

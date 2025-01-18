@@ -184,7 +184,7 @@ int main(void)
 
   /* Create the queue(s) */
   /* definition and creation of NoteQueue1 */
-  osMessageQDef(NoteQueue1, 16, note);
+  osMessageQDef(NoteQueue1, 64, note);
   NoteQueue1Handle = osMessageCreate(osMessageQ(NoteQueue1), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
@@ -464,26 +464,28 @@ void StartParseMidi(void const * argument)
   /* USER CODE BEGIN 5 */
 	uint8_t cnt = 0;
 
-//	  MIDI_controller* ctrl = (MIDI_controller*)argument;
-//    switch(ctrl->format){
-//    case 0:
-//    	play_one_track(ctrl->trk_buf, ctrl);
-//    	break;
-//    case 1:
-//    	myprintf("CASE 1 NOT SUPPORTED...yet\n");
-//    	break;
-//    case 2:
-//    	myprintf("CASE 2 NOT SUPPORTED <3\n");
-//    	break;
-//    }
-//
-//    uint8_t cnt = 0;
+	myprintf("start of parse midi");
+
+	  MIDI_controller* ctrl = (MIDI_controller*)argument;
+    switch(ctrl->format){
+    case 0:
+    	play_one_track(ctrl->trk_buf, ctrl);
+    	break;
+    case 1:
+    	myprintf("CASE 1 NOT SUPPORTED...yet\n");
+    	break;
+    case 2:
+    	myprintf("CASE 2 NOT SUPPORTED <3\n");
+    	break;
+    }
+
+
   /* Infinite loop */
     for(;;)
     {
 
     	myprintf("in parse %d\n\n", cnt);
-    	osDelay(1000);
+    	osDelay(1);
     	cnt++;
   	}
   /* USER CODE END 5 */
@@ -501,29 +503,29 @@ void StartAudioOutput(void const * argument)
   /* USER CODE BEGIN StartAudioOutput */
 
 	myprintf("start of audio output\n");
-//	MIDI_controller* ctrl = (MIDI_controller*)argument;
-//
-//	note* recieved_note = malloc(sizeof(note));
+	MIDI_controller* ctrl = (MIDI_controller*)argument;
+
+	note* recieved_note = malloc(sizeof(note));
 	uint8_t cnt = 0;
 
 
   /* Infinite loop */
   for(;;)
   {
-//	  osEvent res;
-//	  res = osMessageGet(ctrl->queue, osWaitForever);
-//
-//	  recieved_note = (note*)res.value.p;
-//
-//	  myprintf("note # %d recieved \n", recieved_note->number);
-//
-//
-//	  if(res.status != osOK){
-//		  myprintf("osMessageGet error with code %x\n", res.status);
-//	  }
+	  osEvent res;
+	  res = osMessageGet(NoteQueue1Handle, osWaitForever);
+
+	  recieved_note = (note*)res.value.p;
+
+	  myprintf("note # %d recieved \n", recieved_note->number);
+
+
+	  if((res.status != osOK) && (res.status != osEventMessage)){
+		  myprintf("osMessageGet error with code %x\n", res.status);
+	  }
 //
 			myprintf("in output %d\n", cnt);
-	    	osDelay(1000);
+	    	osDelay(1);
 	    	cnt++;
 
   }

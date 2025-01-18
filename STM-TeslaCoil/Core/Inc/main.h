@@ -44,6 +44,7 @@ extern "C" {
 /* USER CODE BEGIN EC */
 extern UART_HandleTypeDef huart2;
 extern osMutexId USART_lockHandle;
+extern osMessageQId NoteQueue1Handle;
 
 /* USER CODE END EC */
 
