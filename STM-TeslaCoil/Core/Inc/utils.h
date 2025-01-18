@@ -5,6 +5,7 @@
 #include "main.h"
 #include <stdarg.h>
 #include "fatfs.h"
+#include "cmsis_os.h"
 
 
 uint32_t decode_vlq(FIL *fp);

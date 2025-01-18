@@ -48,6 +48,10 @@ uint16_t delta_time_to_ms(uint8_t delta_time, MIDI_controller *ctrl)
 }
 
 void myprintf(const char *fmt, ...) {
+
+	osStatus res = osMutexWait(USART_lockHandle, 1000);
+
+	if(res == osOK){
   static char buffer[256];
   va_list args;
   va_start(args, fmt);
@@ -56,6 +60,9 @@ void myprintf(const char *fmt, ...) {
 
   int len = strlen(buffer);
   HAL_UART_Transmit(&huart2, (uint8_t*)buffer, len, -1);
+	}
+
+	osMutexRelease(USART_lockHandle);
 
 }
 

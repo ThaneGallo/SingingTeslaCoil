@@ -1,4 +1,4 @@
 ../Core/Src/utils.c:11:10:decode_vlq	24	static
 ../Core/Src/utils.c:36:10:delta_time_to_ms	24	static
-../Core/Src/utils.c:50:6:myprintf	16	static
-../Core/Src/utils.c:64:6:generate_pwm	48	static
+../Core/Src/utils.c:50:6:myprintf	24	static
+../Core/Src/utils.c:71:6:generate_pwm	48	static

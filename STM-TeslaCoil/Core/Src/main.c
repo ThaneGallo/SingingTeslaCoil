@@ -60,6 +60,7 @@ UART_HandleTypeDef huart2;
 osThreadId ParseMidiHandle;
 osThreadId AudioOutputHandle;
 osMessageQId NoteQueue1Handle;
+osMutexId USART_lockHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -118,9 +119,18 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
-  myprintf("start of program ");
 
 
+
+
+  /* USER CODE END 2 */
+
+  /* Create the mutex(es) */
+  /* definition and creation of USART_lock */
+  osMutexDef(USART_lock);
+  USART_lockHandle = osMutexCreate(osMutex(USART_lock));
+
+  /* USER CODE BEGIN RTOS_MUTEX */
 
   FIL fp;        // for midi file operation
   FATFS FatFs; 	//Fatfs handle
@@ -161,11 +171,6 @@ int main(void)
   if(hdr.format == 0){
 	  ctrl->trk_buf = &fp;
   }
-
-
-  /* USER CODE END 2 */
-
-  /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
@@ -457,26 +462,27 @@ static void MX_GPIO_Init(void)
 void StartParseMidi(void const * argument)
 {
   /* USER CODE BEGIN 5 */
+	uint8_t cnt = 0;
 
-	  MIDI_controller* ctrl = (MIDI_controller*)argument;
-    switch(ctrl->format){
-    case 0:
-    	play_one_track(ctrl->trk_buf, ctrl);
-    	break;
-    case 1:
-    	myprintf("CASE 1 NOT SUPPORTED...yet\n");
-    	break;
-    case 2:
-    	myprintf("CASE 2 NOT SUPPORTED <3\n");
-    	break;
-    }
-
-    uint8_t cnt = 0;
+//	  MIDI_controller* ctrl = (MIDI_controller*)argument;
+//    switch(ctrl->format){
+//    case 0:
+//    	play_one_track(ctrl->trk_buf, ctrl);
+//    	break;
+//    case 1:
+//    	myprintf("CASE 1 NOT SUPPORTED...yet\n");
+//    	break;
+//    case 2:
+//    	myprintf("CASE 2 NOT SUPPORTED <3\n");
+//    	break;
+//    }
+//
+//    uint8_t cnt = 0;
   /* Infinite loop */
     for(;;)
     {
 
-    	myprintf("in parse %d\n", cnt);
+    	myprintf("in parse %d\n\n", cnt);
     	osDelay(1000);
     	cnt++;
   	}
@@ -495,27 +501,27 @@ void StartAudioOutput(void const * argument)
   /* USER CODE BEGIN StartAudioOutput */
 
 	myprintf("start of audio output\n");
-	MIDI_controller* ctrl = (MIDI_controller*)argument;
-
-	note* recieved_note = malloc(sizeof(note));
+//	MIDI_controller* ctrl = (MIDI_controller*)argument;
+//
+//	note* recieved_note = malloc(sizeof(note));
 	uint8_t cnt = 0;
 
 
   /* Infinite loop */
   for(;;)
   {
-	  osEvent res;
-	  res = osMessageGet(ctrl->queue, osWaitForever);
-
-	  recieved_note = (note*)res.value.p;
-
-	  myprintf("note # %d recieved \n", recieved_note->number);
-
-
-	  if(res.status != osOK){
-		  myprintf("osMessageGet error with code %x\n", res.status);
-	  }
-
+//	  osEvent res;
+//	  res = osMessageGet(ctrl->queue, osWaitForever);
+//
+//	  recieved_note = (note*)res.value.p;
+//
+//	  myprintf("note # %d recieved \n", recieved_note->number);
+//
+//
+//	  if(res.status != osOK){
+//		  myprintf("osMessageGet error with code %x\n", res.status);
+//	  }
+//
 			myprintf("in output %d\n", cnt);
 	    	osDelay(1000);
 	    	cnt++;

@@ -20,8 +20,8 @@ void note_on_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_control
 
 
 
-      f_read(fp, note->number, 1, NULL);
-      f_read(fp, note->velocity, 1, NULL);
+      f_read(fp, &note->number, 1, NULL);
+      f_read(fp, &note->velocity, 1, NULL);
       note->frequency = 440 * pow(2.0, (note->number - 69) / 12.0);
 
 //      myprintf("Note On @ Channel: 0x%x\n", channel);
@@ -50,14 +50,13 @@ void note_off_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_contro
 
     uint16_t ms;
     ms = delta_time_to_ms(delta_time, ctrl);
-    note = malloc(sizeof(note));
     osStatus res;
 
     note->on_off = false;
     note->ms = ms;
 
-    f_read(fp,note->number, 1, NULL);
-    f_read(fp,note->velocity, 1, NULL);
+    f_read(fp, &note->number, 1, NULL);
+    f_read(fp,&note->velocity, 1, NULL);
     note->frequency = 440 * pow(2.0, (note->number - 69) / 12.0);
 
 
@@ -74,7 +73,7 @@ void note_off_event(struct note* note, FIL* fp, uint32_t delta_time, MIDI_contro
 
     myprintf("before message put in note off");
     // skip_midi_event(fp, midi_type);
-    res = osMessagePut(ctrl->queue, (uint32_t)note, osWaitForever);
+    res = osMessagePut(ctrl->queue, note, osWaitForever);
     if(res != osOK){
     	myprintf("error in osMessagePut %d\n", res);
     }
@@ -95,7 +94,7 @@ void midi_event_handler(FIL *fp, uint32_t delta_time, uint8_t event, MIDI_contro
 {
     uint8_t midi_type;
     uint8_t channel;
-    struct note* note;
+    struct note* note = malloc(sizeof(note));
 
     midi_type = 0xF0 & event; // event name
     channel = 0x0F & event;   // where the event gets sent *** for polyphonic music
@@ -561,6 +560,8 @@ uint8_t play_one_track(FIL *fp, MIDI_controller *ctrl)
         myprintf("Buffer in parse_midi is null");
         return -1;
     }
+
+    myprintf("beofre track header");
 
     // for debug
     myprintf("Track header: %x\n", trk_hdr);
