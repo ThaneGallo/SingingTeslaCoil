@@ -9,7 +9,7 @@ This system would require to be broken down the parts as it requires concurrent 
 
 ## High Level System Diagram
 
-![System Diagram](images/System_Diagram_Tesla_Coil_Array.jpeg)
+![System Diagram](images/System_Diagram_Tesla_Coil_Array.png)
 
 Note: Current implimentation supports up to 16 timers and coils but could vary based on STM SOC used. Specifics on thread implimentation can be found in the links below:
 
