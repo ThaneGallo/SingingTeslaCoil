@@ -1,8 +1,10 @@
 # Audio Output Thread
+## Thread Diagram 
+
 ## How a note is played
-The output of the coil is determined by the charge and discharge of the secondary coil speed with a switching PWM with frequency deciding the note played. As we would be doing this manually I decided to use the STM32 timer peripherals with a slow clock as the highest possible MIDI note at around 13k Hz. Each coil would get its own dedicated peripheral and with the development board chosen would support up to 16 although most if not all songs and midi files would not need chords of this size to be played for testing and debugging however 3 coils were utilized. 
+The thread would pop a single event off the top of the queue after checking that it has at least one event within. Then the note struct is recieved giving us the event type, timing(ms), and frequency of the note. 
 
-In order to decide where to actually input the timer's PWM signal the board had to be partially reverse engineered in order to understand the circuit more details can be found here(). Long story short the chip used to generate this waveform is a 555 timer chip and as the output of this chip is believed to be >5V the cannot be skipped and the PWM be wired to its output pin and switch the transistor ourselves so we have to trigger it. As there are two 555 timers we decide to trigger the bluetooth one. 
+If the event is a note on it checks for a free coil and plays the event accordingly. 
+If the event is a note off it checks coils that are busy and searches for one that has the same freuqency as the note which is desired to be turned off.
 
-## How does synchronous play work?
-As the notes come in from the parser file each coil thread turns on and plays each note as it comes in. As the event to cancel the note is seperated from the note play event we send the note when it arrives to the respective coil each handle would have a note member showing which note is playing so that when the note stop event arrives it can flip through the coils until it finds the correct one to turn off. This repeats until the end condition meta-event.
+This is repeated until all events run out and the file is finished.
